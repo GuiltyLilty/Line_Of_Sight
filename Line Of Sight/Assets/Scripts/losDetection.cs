@@ -5,11 +5,11 @@ using UnityEngine;
 public class losDetection : MonoBehaviour
 {
 
-    public Transform stranger;
+    public GameObject[] strangers = new GameObject[10];
     public float maxAngle;
     public float maxRadius;
 
-    private bool isInFov = false;
+    private bool[] isInFOV;
 
     private void OnDrawGizmos()
     {
@@ -22,12 +22,23 @@ public class losDetection : MonoBehaviour
         Gizmos.color = Color.blue;
         Gizmos.DrawRay(transform.position, fovLine1);
         Gizmos.DrawRay(transform.position, fovLine2);
+        
+        for (int i = 0; i < strangers.Length; i++)
+        {
+            if (strangers[i] != null) {
 
-        if (!isInFov)
-            Gizmos.color = Color.red;
-        else
-            Gizmos.color = Color.green;
-        Gizmos.DrawRay(transform.position, (stranger.position - transform.position).normalized * maxRadius);
+                if(!isInFOV[i])
+                    Gizmos.color = Color.red;
+                else
+                    Gizmos.color = Color.green;
+
+                //Gizmos.DrawRay(transform.position, (strangers[i].transform.position - transform.position).normalized * maxRadius);
+                Gizmos.DrawRay(transform.position, (strangers[i].transform.GetChild(0).position - transform.position).normalized * maxRadius);
+                Gizmos.DrawRay(transform.position, (strangers[i].transform.GetChild(1).position - transform.position).normalized * maxRadius);
+            }
+            
+        }
+        
 
         Gizmos.color = Color.black;
         Gizmos.DrawRay(transform.position, transform.forward * maxRadius);
@@ -35,9 +46,9 @@ public class losDetection : MonoBehaviour
 
     }
 
-    public static bool inFOV(Transform checkingObject, Transform target, float maxAngle, float maxRadius)
+    public static bool[] inFOV(Transform checkingObject, GameObject[] targets, float maxAngle, float maxRadius)
     {
-
+        bool[] isInFOV = new bool[10];
         Collider[] overlaps = new Collider[10];
         int count = Physics.OverlapSphereNonAlloc(checkingObject.position, maxRadius, overlaps);
 
@@ -46,46 +57,54 @@ public class losDetection : MonoBehaviour
 
             if (overlaps[i] != null)
             {
-
-                if (overlaps[i].transform == target)
+                for (int j = 0; j < targets.Length; j++)
                 {
-
-                    Vector3 directionBetween = (target.position - checkingObject.position).normalized;
-                    directionBetween.y *= 0;
-
-                    float angle = Vector3.Angle(checkingObject.forward, directionBetween);
-
-                    if (angle <= maxAngle)
+                    if (targets[j] != null && overlaps[i].transform == targets[j].transform)
                     {
 
-                        Ray ray = new Ray(checkingObject.position, target.position - checkingObject.position);
-                        RaycastHit hit;
+                        Vector3 directionBetween = (targets[j].transform.position - checkingObject.position).normalized;
+                        directionBetween.y *= 0;
 
-                        if (Physics.Raycast(ray, out hit, maxRadius))
+                        float angle = Vector3.Angle(checkingObject.forward, directionBetween);
+
+                        if (angle <= maxAngle)
                         {
 
-                            if (hit.transform == target)
-                                return true;
+                            Ray rayRight = new Ray(checkingObject.position, targets[j].transform.GetChild(0).position - checkingObject.position);
+                            Ray rayLeft = new Ray(checkingObject.position, targets[j].transform.GetChild(1).position - checkingObject.position);
+                            RaycastHit hit;
+
+                            if (Physics.Raycast(rayLeft, out hit, maxRadius))
+                            {
+                                if (hit.transform == targets[j].transform)
+                                    isInFOV[j] = true;
+
+                            }
+
+                            if (Physics.Raycast(rayRight, out hit, maxRadius))
+                            {
+                                if (hit.transform == targets[j].transform)
+                                    isInFOV[j] = true;
+
+                            }
+
 
                         }
 
 
                     }
-
-
                 }
-
             }
 
         }
 
-        return false;
+        return isInFOV;
     }
 
     private void Update()
     {
 
-        isInFov = inFOV(transform, stranger, maxAngle, maxRadius);
+        isInFOV = inFOV(transform, strangers, maxAngle, maxRadius);
 
     }
 
